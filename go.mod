@@ -4,7 +4,7 @@ go 1.25.8
 
 require (
 	github.com/stretchr/testify v1.11.1
-	github.com/tsarna/rich-cty-types v0.1.0
+	github.com/tsarna/rich-cty-types v0.2.0
 	github.com/zclconf/go-cty v1.18.1
 )
 
