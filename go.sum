@@ -8,8 +8,8 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
-github.com/tsarna/rich-cty-types v0.1.0 h1:kB5UImttQIUEwwaarYD2z9Iy2gxlHknCPunjNlXgRGI=
-github.com/tsarna/rich-cty-types v0.1.0/go.mod h1:ExfNIaAeqEo19WLcrFAGPfsLmIQ4GCEvhu8MRbZeV4k=
+github.com/tsarna/rich-cty-types v0.2.0 h1:eUljPjXsVA8SKuwDO/LgdgsNESeTnhtqvELPz8Qbq08=
+github.com/tsarna/rich-cty-types v0.2.0/go.mod h1:CFQPkG2Ghc5mHIFyFLA1kHs51QLXbuIKuypdhX9dbAo=
 github.com/zclconf/go-cty v1.18.1 h1:yEGE8M4iIZlyKQURZNb2SnEyZlZHUcBCnx6KF81KuwM=
 github.com/zclconf/go-cty v1.18.1/go.mod h1:qpnV6EDNgC1sns/AleL1fvatHw72j+S+nS+MJ+T2CSg=
 golang.org/x/text v0.11.0 h1:LAntKIrcmeSKERyiOh0XMV39LXS8IE9UL2yP7+f5ij4=
