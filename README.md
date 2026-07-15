@@ -26,6 +26,12 @@ funcs := urlcty.GetURLFunctions()
 // funcs is map[string]function.Function — merge into your eval context
 ```
 
+The functions are namespaced under `url::` (e.g. `url::parse`, `url::join`). HCL parses
+`a::b(x)` natively as a single flat map key, so no special handling is needed — the keys
+of the returned map simply contain `::`. This package provides `url::decode` but not
+`url::encode`: percent-encoding is cty stdlib's `urlencode`, which a host can also register
+under `url::encode` for a symmetric pair.
+
 ## Types
 
 ### `urlcty.URLCapsuleType`
@@ -34,7 +40,7 @@ A cty capsule type wrapping Go's `*url.URL`. Values of this type carry the parse
 
 ### `urlcty.URLObjectType`
 
-A static cty object type with named attributes for every `*url.URL` field, plus a `_capsule` attribute that holds the `URLCapsuleType` value. This is the type returned by `urlparse`, `urljoin`, and `urljoinpath`, so you can read individual components directly (`u.scheme`, `u.host`, `u.query["key"]`, …) while still passing `u` back to other URL functions.
+A static cty object type with named attributes for every `*url.URL` field, plus a `_capsule` attribute that holds the `URLCapsuleType` value. This is the type returned by `url::parse`, `url::join`, and `url::join_path`, so you can read individual components directly (`u.scheme`, `u.host`, `u.query["key"]`, …) while still passing `u` back to other URL functions.
 
 Attributes:
 
@@ -56,7 +62,7 @@ urlcty.GetURLFromValue(val cty.Value) (*url.URL, error) // accepts string, capsu
 urlcty.BuildURLObject(u *url.URL) cty.Value
 ```
 
-`GetURLFromValue` accepts any of three input shapes — a plain `cty.String`, a `URLCapsuleType` capsule, or a `URLObjectType` object (via its `_capsule` attribute) — which lets URL-consuming functions (`urljoin`, `urljoinpath`, and user code) take whichever form is most convenient.
+`GetURLFromValue` accepts any of three input shapes — a plain `cty.String`, a `URLCapsuleType` capsule, or a `URLObjectType` object (via its `_capsule` attribute) — which lets URL-consuming functions (`url::join`, `url::join_path`, and user code) take whichever form is most convenient.
 
 ### Generic operation support
 
@@ -69,20 +75,45 @@ urlcty.BuildURLObject(u *url.URL) cty.Value
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `urlparse` | `(string) → url` | Parse a URL string into a URL object |
-| `urljoin` | `(url, url) → url` | Resolve `ref` against `base` per RFC 3986 |
-| `urljoinpath` | `(url, string...) → url` | Append path segments to `base`, each segment is path-escaped |
-| `urlqueryencode` | `(map(string) \| map(list(string))) → string` | Encode a map as a URL-encoded query string |
-| `urlquerydecode` | `(string) → map(list(string))` | Decode a query string (leading `?` optional) |
-| `urldecode` | `(string) → string` | Percent-decode a string (inverse of `urlencode`; `+` → space) |
+| `url::parse` | `(string) → url` | Parse a URL string into a URL object |
+| `url::join` | `(url, url) → url` | Resolve `ref` against `base` per RFC 3986 |
+| `url::join_path` | `(url, string...) → url` | Append path segments to `base`, each segment is path-escaped |
+| `url::query_encode` | `(map(string) \| map(list(string))) → string` | Encode a map as a URL-encoded query string |
+| `url::query_decode` | `(string) → map(list(string))` | Decode a query string (leading `?` optional) |
+| `url::decode` | `(string) → string` | Percent-decode a string (inverse of `urlencode`; `+` → space) |
 
 `url` arguments accept any of: a `string`, a `URLCapsuleType` capsule, or a `URLObjectType` object.
+
+## Signature declarations
+
+Three of these functions have signatures cty cannot express. `url::join`, `url::join_path`,
+and `url::query_encode` each take an argument that is a **union** — a URL as a string or a
+`url` object, a query map whose values are strings or lists — which cty has no way to name,
+so it declares the parameter `dynamic`. And a `dynamic` argument poisons cty's return type
+to `dynamic` too, so even the fixed type each returns (`url`, a string) is **invisible** in
+reflected metadata: from cty alone, `url::join` reflects with no return type at all.
+
+So `externs.cty` declares those three as [functy](https://github.com/tsarna/functy)
+`//functy:extern` declarations, restoring the return and naming the union (as overload
+forms, for `url::query_encode`). It is never compiled and declares nothing callable; it
+exists so `help()`, generated documentation, and editor tooling can show the real
+signatures. The other three functions take a concrete string and are cty-complete, so they
+are deliberately not declared. `Externs()` returns the file as opaque bytes — this package
+does not import functy:
+
+```go
+parser.RegisterType("url", urlcty.URLObjectType)
+parser.RegisterExterns(urlcty.Externs(), urlcty.ExternsFilename)
+```
+
+Every function and parameter also carries a cty `Description`, so a host that is not a
+functy host still has complete metadata.
 
 ## Examples
 
 ```hcl
 # Parse and decompose
-u = urlparse("https://user:pass@example.com:8080/v1/users?tag=go&tag=cty#top")
+u = url::parse("https://user:pass@example.com:8080/v1/users?tag=go&tag=cty#top")
 u.scheme     # "https"
 u.host       # "example.com:8080"
 u.hostname   # "example.com"
@@ -94,28 +125,28 @@ u.query      # { tag = ["go", "cty"] }
 get(u, "query_param", "tag")   # ["go", "cty"]
 
 # Join relative / absolute references (RFC 3986)
-urljoin("https://example.com/a/b", "../c")        # → /c
-urljoin("https://example.com/base/", "/absolute") # → /absolute
+url::join("https://example.com/a/b", "../c")        # → /c
+url::join("https://example.com/base/", "/absolute") # → /absolute
 
 # Append path segments (segments are percent-escaped)
-urljoinpath("https://api.example.com/v1", "users", "42", "profile")
+url::join_path("https://api.example.com/v1", "users", "42", "profile")
 # → https://api.example.com/v1/users/42/profile
 
-urljoinpath("https://example.com/", "hello world")
+url::join_path("https://example.com/", "hello world")
 # tostring(...) → "https://example.com/hello%20world"
 
 # Query encoding / decoding
-urlqueryencode({ q = "hello world", page = "2" })   # "page=2&q=hello+world"
-urlqueryencode({ tag = ["go", "cty"] })             # "tag=go&tag=cty"
-urlquerydecode("a=1&b=2&b=3")                       # { a = ["1"], b = ["2", "3"] }
-urlquerydecode("?k=v")                              # { k = ["v"] }
+url::query_encode({ q = "hello world", page = "2" })   # "page=2&q=hello+world"
+url::query_encode({ tag = ["go", "cty"] })             # "tag=go&tag=cty"
+url::query_decode("a=1&b=2&b=3")                       # { a = ["1"], b = ["2", "3"] }
+url::query_decode("?k=v")                              # { k = ["v"] }
 
 # Percent-decoding
-urldecode("caf%C3%A9")    # "café"
-urldecode("hello+world")  # "hello world"
+url::decode("caf%C3%A9")    # "café"
+url::decode("hello+world")  # "hello world"
 
 # Round-trip via tostring
-tostring(urlparse("https://example.com/path"))  # "https://example.com/path"
+tostring(url::parse("https://example.com/path"))  # "https://example.com/path"
 ```
 
 ## License

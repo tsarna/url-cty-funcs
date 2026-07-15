@@ -1,0 +1,35 @@
+//functy:extern
+
+namespace url
+
+// The URL functions whose real signature their cty metadata cannot express, provided in
+// Go by url-cty-funcs (GetURLFunctions). Signatures only — never compiled, nothing here
+// is callable.
+//
+// Only three are declared. url::parse, url::query_decode, and url::decode take a concrete
+// string and return a fixed type, so their cty metadata already says everything true about
+// them. The three here each take an argument that is a *union* — a URL as a string or a
+// `url` object, a query map whose values are strings or lists — which cty has no way to
+// name, so it declares the parameter `dynamic`. And a dynamic argument poisons cty's
+// return type to `dynamic` too, so even the fixed return each one has (`url`, a string) is
+// invisible in reflected metadata. The declarations restore the return and name the union.
+//
+// `url` is the object type these produce and consume (see URLObjectType); a host registers
+// it. Standalone, `functy check` reports it as unregistered, which is expected.
+
+// Resolve a reference URL against a base, following RFC 3986.
+func join(
+    base,  // base URL: a string, a url object, or a url capsule
+    ref,  // reference URL to resolve: a string, a url object, or a url capsule
+) -> url
+
+// Join path elements onto a base URL, each element path-escaped.
+func join_path(
+    base,  // base URL: a string, a url object, or a url capsule
+    *elem: string,  // path elements to append
+) -> url
+
+// Encode a map of query parameters into a URL-encoded query string. A value may be a
+// single string, or a list of strings for a repeated key.
+func query_encode(params: map(string)) -> string
+func query_encode(params: map(list(string))) -> string
